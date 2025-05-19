@@ -1,0 +1,74 @@
+name: Деплой с использованием SSH-ключей
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    # Позволяет запускать workflow вручную из интерфейса GitHub
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Проверка кода
+      uses: actions/checkout@v3
+      
+    - name: Настройка Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Установка зависимостей
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        
+    - name: Настройка SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        
+    - name: Добавление сервера в известные хосты
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        ssh-keyscan "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/known_hosts
+        
+    - name: Деплой на сервер
+      env:
+        SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        SERVER_USER: ${{ secrets.SERVER_USER }}
+        SERVER_PATH: ${{ secrets.SERVER_PATH }}
+      run: |
+        # Создание архива проекта
+        tar -czf telegram_bot.tar.gz --exclude='.git' --exclude='venv' --exclude='env' --exclude='*.env' --exclude='*.log' --exclude='*.tmp' .
+        
+        # Копирование архива на сервер
+        scp telegram_bot.tar.gz ${SERVER_USER}@${SERVER_HOST}:${SERVER_PATH}
+        
+        # Выполнение команд на сервере
+        ssh ${SERVER_USER}@${SERVER_HOST} << EOF
+          cd ${SERVER_PATH}
+          tar -xzf telegram_bot.tar.gz -C .
+          rm telegram_bot.tar.gz
+          
+          # Установка зависимостей
+          if [ -f requirements.txt ]; then
+            python3 -m pip install -r requirements.txt
+          fi
+          
+          # Перезапуск сервиса (если используется systemd)
+          if [ -f /etc/systemd/system/telegram-bot.service ]; then
+            sudo systemctl restart telegram-bot
+          fi
+          
+          # Альтернативный способ перезапуска (если используется Docker)
+          if [ -f docker-compose.yml ]; then
+            docker-compose down
+            docker-compose up -d
+          fi
+          
+          echo "Деплой успешно завершен!"
+        EOF

@@ -1,0 +1,32 @@
+# Основные зависимости для проекта
+python-telegram-bot==20.6
+aiogram==3.2.0
+python-dotenv==1.0.0
+SQLAlchemy==2.0.23
+pydantic==2.5.2
+
+# Для работы с голосовыми сообщениями
+SpeechRecognition==3.10.0
+pydub==0.25.1
+ffmpeg-python==0.2.0
+
+# Для генерации голоса (бесплатные альтернативы)
+gTTS==2.3.2
+edge-tts==6.1.9
+
+# Для работы с ИИ (бесплатные альтернативы)
+llama-cpp-python==0.2.19
+huggingface-hub==0.19.4
+transformers==4.35.2
+torch==2.1.1
+
+# Для интеграции с Suno
+requests==2.31.0
+python-multipart==0.0.6
+
+# Для работы с Docker
+docker-compose==1.29.2
+
+# Утилиты
+tqdm==4.66.1
+loguru==0.7.2

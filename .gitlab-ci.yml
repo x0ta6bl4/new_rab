@@ -1,0 +1,50 @@
+# Файл конфигурации GitLab CI/CD для автоматического деплоя
+
+stages:
+  - deploy
+
+deploy_production:
+  stage: deploy
+  image: python:3.9-slim
+  only:
+    - main
+    - master
+  before_script:
+    - apt-get update && apt-get install -y openssh-client tar gzip
+    - pip install -r requirements.txt
+    - 'which ssh-agent || apt-get install -y openssh-client'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    # Создание архива проекта
+    - tar -czf telegram_bot.tar.gz --exclude='.git' --exclude='venv' --exclude='env' --exclude='*.env' --exclude='*.log' --exclude='*.tmp' .
+    
+    # Копирование архива на сервер
+    - scp telegram_bot.tar.gz $SERVER_USER@$SERVER_HOST:$SERVER_PATH
+    
+    # Выполнение команд на сервере
+    - |
+      ssh $SERVER_USER@$SERVER_HOST "cd $SERVER_PATH && \
+      tar -xzf telegram_bot.tar.gz && \
+      rm telegram_bot.tar.gz && \
+      if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then \
+        echo \"Ошибка: Docker и/или Docker Compose не установлены на сервере.\" && \
+        exit 1; \
+      fi && \
+      docker-compose down && \
+      docker-compose build --no-cache && \
+      docker-compose up -d && \
+      docker-compose ps"
+  environment:
+    name: production
+  variables:
+    # Эти переменные должны быть настроены в настройках CI/CD проекта GitLab
+    # SERVER_HOST: IP-адрес или домен сервера
+    # SERVER_USER: Имя пользователя для SSH-подключения
+    # SERVER_PATH: Путь к директории проекта на сервере
+    # SSH_PRIVATE_KEY: Приватный SSH-ключ для подключения к серверу
+    # SSH_KNOWN_HOSTS: Содержимое файла known_hosts для SSH

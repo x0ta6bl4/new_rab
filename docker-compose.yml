@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  telegram_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # Монтирование файла с переменными окружения
+      - ../keys.env:/app/keys.env:ro
+      # Монтирование директории для хранения данных базы данных
+      - ./data:/app/data
+      # Монтирование директории для временных файлов
+      - /tmp/telegram_bot_voice:/tmp/telegram_bot_voice
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Moscow
+    # Настройка логирования
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
